@@ -1,0 +1,9 @@
+# Local auto-format before commit — WPILib/RobotPy standard is Black.
+# Install once:  pre-commit install
+# Run on all files:  pre-commit run --all-files
+repos:
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1 # keep in sync with pyproject [tool.black] target + lint.yml
+    hooks:
+      - id: black
+        language_version: python3.14

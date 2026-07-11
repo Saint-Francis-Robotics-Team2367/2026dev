@@ -1,0 +1,51 @@
+name: lint
+
+# Enforce the WPILib/RobotPy Python standard (Black) on every PR and on main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  black:
+    name: black --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Black
+        # Pinned to match pyproject [tool.black] + .pre-commit-config.yaml
+        run: pip install black==26.5.1
+
+      - name: Check formatting
+        run: black --check --diff .
+
+  pyright:
+    name: pyright (standard)
+    # Runs on Windows, not ubuntu-latest: RobotPy's Linux wheels require
+    # glibc >= 2.41 (Ubuntu 26.04 / Debian 13), newer than the current
+    # ubuntu-latest runner. Windows matches our verified local setup.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Set up venv + install RobotPy (pyright resolves types from .venv)
+        shell: pwsh
+        run: |
+          py -3.14 -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install --pre "robotpy[commands2]"
+          .\.venv\Scripts\python.exe -m pip install pyright
+
+      - name: Type check
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m pyright

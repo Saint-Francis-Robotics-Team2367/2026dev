@@ -1,0 +1,9 @@
+{
+  // Prompted as "recommended" when a teammate opens this folder.
+  "recommendations": [
+    "wpilibsuite.vscode-wpilib", // Official WPILib extension (Python support integrated since 2024)
+    "ms-python.python", // Python language support + test/debug integration
+    "ms-python.vscode-pylance", // Pyright-based type checking (matches our CI gate)
+    "ms-python.black-formatter" // Black formatter (WPILib/RobotPy standard)
+  ]
+}

@@ -1,0 +1,33 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtual environment ---
+.venv/
+venv/
+env/
+
+# --- RobotPy / WPILib ---
+# robotpy sync downloads a local cache of robot-side wheels + python
+.robotpy/
+*.whl
+ctre_sim/
+networktables.json*
+logs/
+*.wpilog
+simgui*.json
+!simgui.json          # keep committed sim GUI layout if we add one intentionally
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+# Ignore personal VS Code state, but share project-level config with the team
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json

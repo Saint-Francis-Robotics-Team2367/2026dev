@@ -1,0 +1,26 @@
+{
+  // F5 shortcuts that call the robotpy CLI. These work with just the Python
+  // extension; the WPILib extension additionally offers "WPILib: Simulate
+  // Robot Code" / "Deploy" from the command palette (both wrap this same CLI).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "robotpy sim",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "robotpy",
+      "args": ["sim"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "robotpy test (builtin)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "robotpy",
+      "args": ["test", "--builtin"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

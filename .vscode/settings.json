@@ -1,0 +1,24 @@
+{
+  // Use the project virtualenv so Pylance resolves wpilib/commands2/wpimath.
+  // (Windows path; macOS/Linux devs: ".venv/bin/python".)
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+
+  // Pylance IS the pyright engine — keep it at the same mode as our CI gate
+  // so in-editor squiggles match `pyright` and the PR check.
+  "python.analysis.typeCheckingMode": "standard",
+
+  // Format with Black (WPILib/RobotPy standard) on save.
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+
+  // pyfrc/robotpy tests live under tests/.
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests"],
+
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true
+  }
+}
