@@ -1,4 +1,4 @@
-# 2027Dev — FRC 2027 Robot Code (Python / RobotPy)
+# 2026Dev — FRC 2027 Robot Code (Python / RobotPy)
 
 Command-based **swerve** robot code for the **2027 FRC season**, written in Python with
 [RobotPy](https://robotpy.readthedocs.io/). Built simulation-first.
@@ -41,8 +41,8 @@ git --version
 
 ```powershell
 cd $HOME\Desktop
-git clone <REPO-URL> 2027Dev   # replace <REPO-URL> with this repo's clone URL
-cd 2027Dev
+git clone <REPO-URL> 2026Dev   # replace <REPO-URL> with this repo's clone URL
+cd 2026Dev
 ```
 
 ### 3. Create and activate the virtualenv
