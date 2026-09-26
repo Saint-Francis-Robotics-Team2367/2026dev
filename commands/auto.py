@@ -25,15 +25,15 @@ def demo_auto(drivetrain: Drivetrain) -> commands2.Command:
         return commands2.cmd.run(
             lambda: drivetrain.drive(vx, vy, omega, field_relative=False),
             drivetrain,
-        ).withTimeout(_SEGMENT_S)
+        ).with_timeout(_SEGMENT_S)
 
-    stop = commands2.cmd.runOnce(
+    stop = commands2.cmd.run_once(
         lambda: drivetrain.drive(0.0, 0.0, 0.0, field_relative=False), drivetrain
     )
 
     return (
         segment(_SPEED_MPS, 0.0, 0.0)
-        .andThen(segment(0.0, _SPEED_MPS, 0.0))
-        .andThen(segment(0.0, 0.0, _TURN_RPS))
-        .andThen(stop)
+        .and_then(segment(0.0, _SPEED_MPS, 0.0))
+        .and_then(segment(0.0, 0.0, _TURN_RPS))
+        .and_then(stop)
     )
