@@ -14,7 +14,7 @@ GUI** window opens. Then:
 1. **Watch autonomous — easiest, no controller.** In the **Robot State** panel, click
    **Autonomous**. `demo_auto` runs and the robot drives itself (forward → strafe → spin).
 2. **See the field.** The published Field2d appears in the **NetworkTables** tree under
-   `SmartDashboard → Field` (drag it open), or use the **2D Field View** window. The robot icon
+   `Telemetry → Field` (drag it open), or use the **2D Field View** window. The robot icon
    moves as it drives.
 3. **Drive teleop with the keyboard.** Drag **Keyboard 0** from the *System Joysticks* list into
    *Joysticks* slot **0**, click **Teleoperated**, then use the keys shown in the Joysticks panel
@@ -32,22 +32,22 @@ Older RobotPy projects modeled physics in a `physics.py` `PhysicsEngine` provide
 **`pyfrc`**. `pyfrc` is **not** part of the RobotPy 2027 stack — `robotpy sim` and
 `robotpy test` now come from `robotpy-cli` and `wpilib.testing`. So this project uses
 WPILib's current **device-simulation** pattern instead: the simulation logic lives in the
-subsystem's `simulationPeriodic()`.
+subsystem's `simulation_periodic()`.
 
 ## How the robot moves in sim
 
 1. Teleop calls `Drivetrain.drive()`, which runs inverse kinematics and sets each module's
    desired `SwerveModuleVelocity`.
-2. `Drivetrain.simulationPeriodic()` (called by the scheduler only in simulation) advances the
-   model one timestep: it integrates the robot **heading** from the last commanded rotational
-   velocity and calls each module's `simulate(dt)` to accumulate wheel distance.
+2. `Drivetrain.simulation_periodic()` (called by the scheduler only in simulation) advances the
+   model one timestep: each module's `simulate(dt)` advances its motor physics, then the robot
+   **heading** is integrated from the rotation rate the modules actually produce.
 3. `Drivetrain.periodic()` feeds the heading + module positions into `SwerveDrive4Odometry`
    and publishes the resulting pose to **Field2d** — that's what you see move.
 
 ## Watch it drive in Autonomous
 
 `commands/auto.py`'s `demo_auto` is a controller-free routine (drive forward → strafe → spin →
-stop). `robot.py` schedules it in `autonomousInit`, so enabling **Autonomous** in the sim GUI makes
+stop). `robot.py` schedules it in `autonomous_init`, so enabling **Autonomous** in the sim GUI makes
 the robot drive itself on the field — the simplest way to *see* motion without a controller. It's a
 placeholder for real trajectory-following autos.
 
@@ -56,10 +56,10 @@ placeholder for real trajectory-following autos.
 
 ## Dashboards (Elastic / AdvantageScope)
 
-`telemetry.py` publishes the drivetrain state to NetworkTables as typed struct topics under the
+`drivetrain_telemetry.py` publishes the drivetrain state to NetworkTables as typed struct topics under the
 `Drivetrain` table: `pose` (`Pose2d`), `chassisVelocities`, `moduleStates`
 (`SwerveModuleVelocity[]`), plus `headingDegrees` and `speedMps`. `Field2d` is published under
-`SmartDashboard/Field`. These use the WPILib struct schema, so any NT4 dashboard reads them — no
+`Telemetry/Field`. These use the WPILib struct schema, so any NT4 dashboard reads them — no
 code changes needed.
 
 **The sim GUI is still where you enable the robot / pick Autonomous.** The dashboards only
@@ -75,7 +75,7 @@ Both tools ship with the WPILib installer, or download them standalone
 1. `robotpy sim` (starts the NT server).
 2. **File → Connect to Simulator** (localhost; no config for a local sim).
 3. Open a **2D Field** tab → drag `Drivetrain/pose` onto the **Robot** slot (or use
-   `SmartDashboard/Field`).
+   `Telemetry/Field`).
 4. Enable **Autonomous** in the sim GUI → the robot drives on the field, live.
 5. Open a **Line Graph** tab → drag `Drivetrain/headingDegrees` / `speedMps` to plot.
 
@@ -83,7 +83,7 @@ Both tools ship with the WPILib installer, or download them standalone
 
 1. `robotpy sim`.
 2. **Settings (gear) → IP Address Mode → `localhost`**.
-3. **Add Widget** → `SmartDashboard/Field` for the field; add number/gauge widgets for
+3. **Add Widget** → `Telemetry/Field` for the field; add number/gauge widgets for
    `Drivetrain/headingDegrees` and `speedMps`.
 4. Enable **Autonomous** in the sim GUI → widgets update live.
 
@@ -91,31 +91,39 @@ Note: both tools have a dedicated *swerve module* widget that expects the `Swerv
 struct; the 2027 rename to `SwerveModuleVelocity` means that specific widget may not parse it yet on
 alpha. The pose/field view and all scalar values work regardless.
 
-## Idealized modules
+## Phoenix 6 modules in simulation
 
-`SwerveModule` is a **kinematic** model: it's assumed to reach its commanded angle instantly
-and its commanded wheel velocity exactly (`set_desired_state` sets angle/velocity directly;
-`simulate` just integrates distance). That is deliberately simple and is enough to validate
-kinematics, odometry, field-relative driving, and autonomous path logic.
+`SwerveModule` drives real Phoenix 6 devices: a TalonFX for drive (`VelocityVoltage`, wheel
+rotations), a TalonFX for steer (`PositionVoltage` with continuous wrap on a `REMOTE_CANCODER`,
+module rotations), and a CANcoder. In simulation Phoenix simulates those devices itself,
+including their firmware closed loops. `SwerveModule.simulate(dt)` supplies the physics: two
+`DCMotorSim` models (Kraken X60, placeholder inertias in `constants.py`) are driven by each
+Talon's output voltage, and the resulting rotor positions/velocities and CANcoder angle are
+written back through the devices' `sim_state`. So the sim has real acceleration, steering lag,
+and closed-loop tracking error, driven by the same gains the robot will use.
 
-It is **not** motor-fidelity: there's no acceleration limit, no steering lag, no battery sag.
+Two Phoenix sim behaviors to know:
 
-## Extending it (when hardware/vendordeps arrive)
+- **Phoenix's simulated devices run on wall-clock time.** `robotpy sim` runs in real time, so
+  it behaves. `robotpy test` fast-forwards (the harness steps 0.2 s at a time), so the device
+  firmware lags. The boot tests still pass, but they don't show realistic motion. Module
+  behavior is tested in real time instead (below).
+- **Phoenix takes its enable from WPILib's Driver Station.** Motors only move while the (sim)
+  DS is enabled. Don't use `phoenix6.unmanaged.feed_enable` alongside WPILib: it fights the DS
+  and the motors cut out intermittently. It's only for non-WPILib programs like `bench/`.
 
-Keep the `SwerveModule` interface (`set_desired_state` / `get_state` / `get_position`) and
-replace the internals with:
-
-- real motor controllers (Phoenix6 / REVLib CAN) + closed-loop control (a `PIDController` for
-  steering with continuous input, feedforward + PID for drive velocity), and
-- a `wpilib.simulation` motor model — e.g. `DCMotorSim` fed by the module's output voltage — so
-  the simulated encoders report realistic values back to the closed loop.
-
-At that point the heading should come from the SystemCore onboard IMU (with an IMU sim) rather
-than being integrated from the command.
+Heading is still integrated in sim (no IMU model yet), but now from the rotation rate the
+modules actually produce, not the commanded one. On hardware it should come from the SystemCore
+onboard IMU.
 
 ## Tests
 
-`tests/test_swerve.py` exercises this pipeline without the HAL/GUI: forward-command kinematics,
-module distance integration, steering optimization, and a full 1-second odometry drive that
-asserts the pose advances ~1 m. `tests/robot_test.py` boots the whole robot. Run both with
-`robotpy test`.
+- `tests/test_swerve.py`: pure wpimath (kinematics, `optimize`, odometry), with no HAL and no
+  Phoenix. It runs in milliseconds.
+- `tests/test_swervemodule_sim.py`: the Phoenix-backed `SwerveModule` against Phoenix's
+  simulated devices, **in real time** (~9 s total). It checks that the module reaches the
+  commanded velocity and angle, takes the shortest steering path, integrates distance
+  consistently, and handles the CANcoder magnet offset.
+- `tests/robot_test.py`: generated full-robot boot tests.
+
+Run everything with `robotpy test` (~30 s).

@@ -44,6 +44,8 @@ jobs:
           py -3.14 -m venv .venv
           .\.venv\Scripts\python.exe -m pip install --upgrade pip
           .\.venv\Scripts\python.exe -m pip install --pre "robotpy[commands2]"
+          # Keep in sync with pyproject [tool.robotpy] requires
+          .\.venv\Scripts\python.exe -m pip install "phoenix6==26.70.0a2"
           .\.venv\Scripts\python.exe -m pip install pyright
 
       - name: Type check

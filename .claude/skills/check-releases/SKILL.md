@@ -16,17 +16,26 @@ sources that matter and recommends whether to act.
 ### 1. Current pin
 Read `robotpy_version` from `pyproject.toml`. It is the baseline for every comparison below.
 
-### 2. RobotPy on PyPI (deterministic — run the script)
+### 2. RobotPy + vendordep Python bindings on PyPI (deterministic — run the script)
 Run the bundled checker with the venv interpreter:
 
 ```powershell
-& .\.venv\Scripts\python.exe .claude\skills\check-releases\check_robotpy_pypi.py
+& .\.venv\Scripts\python.exe .claude\skills\check-releases\check_pypi_releases.py
 ```
 
-It prints the pin, the latest `2027.*` release (pre-releases included), a `STATUS:` line, and —
-when the release **channel** changes (e.g. alpha → beta) — a `SIGNAL:` line. Trust this over the
-PyPI web page: PyPI's `info.version` shows the latest *stable* release (a 2026.x line), so the 2027
-pre-releases are easy to miss by eye or via a summarizer.
+It checks three PyPI packages for the 2027 / SystemCore (Python 3.14) stack and prints a `STATUS:`
+(and, at a milestone, a `SIGNAL:`) line for each:
+
+- **robotpy** — newest `2027.*` release vs. the pin; flags a channel change (alpha → beta → …).
+- **phoenix6** and **robotpy-rev** — the CTR / REV **Python** bindings that unblock real motor
+  control. It reports whether the package's **SystemCore line** (phoenix6 ≥ 26.50, robotpy-rev
+  2027.*) has a wheel that **installs on Python 3.14**: either `cp314`, or a stable-ABI
+  `cp3X-abi3` wheel (phoenix6 ships abi3 only, so a literal `cp314` tag never appears). Matching
+  "installs on 3.14" alone isn't enough, because phoenix6's roboRIO line is also abi3.
+
+Trust this over the PyPI web pages **and over a summarizer** — both miss pre-releases, because
+`info.version` shows the latest *stable* (a 2026.x / roboRIO line). The script lists the wheel
+platforms and prints a `NOTE:` if there's no `win_amd64` wheel (so no local sim install).
 
 ### 3. WPILib 2027 (web)
 RobotPy rides the WPILib release train. Check for a newer 2027 tag / announcement and note the
@@ -35,12 +44,13 @@ channel (alpha / beta / RC), skimming the changelog for API changes that would t
 - https://github.com/wpilibsuite/allwpilib/releases
 - https://wpilib.org/blog
 
-### 4. Phoenix6 / REVLib SystemCore vendordeps (web)
-These unblock replacing the idealized `subsystems/swervemodule.py` with real motor control, and are
-**not expected during alpha**. Check whether a **SystemCore / 2027** vendordep has shipped, and its
-version:
+### 4. Java/C++ vendordep context (web — secondary; step 2 is authoritative)
+The CTR / REV **Java/C++** vendordeps and WPILib itself ship *ahead of* the RobotPy Python bindings,
+so a SystemCore vendordep existing here means the Python binding is likely **next** — not that it is
+usable from this repo yet. Confirm real usability with **step 2's Python 3.14 wheel check**; use these only as
+early warning and for the changelog of API changes:
 - Phoenix6 (CTR): https://api.ctr-electronics.com/changelog · https://docs.ctr-electronics.com
-- REVLib (REV): https://docs.revrobotics.com/revlib · REV's software downloads page
+- REVLib (REV): https://github.com/wpilibsuite/SystemcoreTesting/blob/main/REV.md · https://docs.revrobotics.com/revlib
 
 ## 5. How to read the result
 
@@ -51,7 +61,8 @@ Rank the signals by how much they should change what we do:
 | New **alpha** (channel unchanged) | low | Bump when convenient; expect continued churn. |
 | First **beta** | **high** | API is stabilizing — bump promptly and start investing in code deferred because of churn. |
 | **RC / final** | **high** | Bump and lock in; do a full pass over `docs/2027-migration.md` for last-minute renames. |
-| Phoenix6 / REVLib **SystemCore vendordep** ships | **high** | Unblocks the real motor layer; plan the `swervemodule.py` swap (keep the `set_desired_state` / `get_state` / `get_position` interface). |
+| Java/C++ SystemCore vendordep ships, but **no Python 3.14 wheel yet** | medium | Python binding likely next — keep watching `phoenix6` / `robotpy-rev` on PyPI (step 2). |
+| **Python 3.14 wheel** (cp314 or abi3) for `phoenix6` / `robotpy-rev` appears (step 2 → `STATUS: AVAILABLE`) | **high** | Python binding is installable — plan the `swervemodule.py` swap (keep the `set_desired_state` / `get_state` / `get_position` interface). |
 | SystemCore-2027 **go/no-go** news | — | Not a version bump, but surface it — the whole 2027 target depends on it. |
 
 ## 6. If bumping

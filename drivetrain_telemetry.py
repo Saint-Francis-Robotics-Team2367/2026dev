@@ -17,17 +17,17 @@ class DrivetrainTelemetry:
     """Owns the NetworkTables publishers for the drivetrain."""
 
     def __init__(self, table_name: str = "Drivetrain") -> None:
-        table = NetworkTableInstance.getDefault().getTable(table_name)
+        table = NetworkTableInstance.get_default().get_table(table_name)
         # Publishers must be retained (they unpublish when garbage-collected).
-        self._pose = table.getStructTopic("pose", Pose2d).publish()
-        self._chassis = table.getStructTopic(
+        self._pose = table.get_struct_topic("pose", Pose2d).publish()
+        self._chassis = table.get_struct_topic(
             "chassisVelocities", ChassisVelocities
         ).publish()
-        self._states = table.getStructArrayTopic(
+        self._states = table.get_struct_array_topic(
             "moduleStates", SwerveModuleVelocity
         ).publish()
-        self._heading_deg = table.getDoubleTopic("headingDegrees").publish()
-        self._speed_mps = table.getDoubleTopic("speedMps").publish()
+        self._heading_deg = table.get_double_topic("headingDegrees").publish()
+        self._speed_mps = table.get_double_topic("speedMps").publish()
 
     def publish(
         self,

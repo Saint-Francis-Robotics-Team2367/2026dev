@@ -4,7 +4,7 @@ Command-based **swerve** robot code for the **2027 FRC season**, written in Pyth
 [RobotPy](https://robotpy.readthedocs.io/). Built simulation-first.
 
 > 2027 replaces the roboRIO with **SystemCore** and RobotPy 2027 is still **alpha**
-> (`2027.0.0a6`), so some APIs will shift before kickoff. See
+> (`2027.0.0a7`), so some APIs will shift before kickoff. See
 > [docs/2027-migration.md](docs/2027-migration.md) for what changed.
 
 ## Requirements
@@ -74,7 +74,7 @@ pre-commit install   # enables the Black format-on-commit hook
 ### 5. Verify
 
 ```powershell
-python -c "import wpilib, commands2, wpimath; print(wpilib.__version__)"  # 2027.0.0a6.postN
+python -c "import wpilib, commands2, wpimath; print(wpilib.__version__)"  # 2027.0.0a7
 robotpy test        # expect: 8 passed
 pyright             # expect: 0 errors, 0 warnings
 black --check .     # expect: All done / nothing to reformat
@@ -118,14 +118,16 @@ robot.py            # CommandRobot entry point (commands2.TimedCommandRobot)
 robotcontainer.py   # wires subsystems, default commands, button bindings
 constants.py        # geometry, kinematics, limits, hardware IDs, OI (placeholders)
 subsystems/
-  swervemodule.py   # one module (idealized kinematic sim model)
+  swervemodule.py   # one module: Phoenix 6 TalonFX drive/steer + CANcoder (DCMotorSim in sim)
   drivetrain.py     # SwerveDrive4Kinematics + odometry + Field2d + heading sim
 commands/
   drive.py          # default teleop command (field-relative, from Xbox sticks)
   auto.py           # controller-free autonomous demo (drives itself in sim)
-telemetry.py        # publishes pose/chassis/module states to NT (Elastic/AdvantageScope)
+bench/              # standalone CAN bench tool (CANivore, no WPILib); see bench/README.md
+drivetrain_telemetry.py  # publishes pose/chassis/module states to NT (Elastic/AdvantageScope)
 tests/
-  test_swerve.py    # kinematics / module / odometry math (HAL-free)
+  test_swerve.py    # kinematics / optimize / odometry math (HAL-free)
+  test_swervemodule_sim.py  # Phoenix module vs simulated devices, in real time
   robot_test.py     # generated WPILib full-boot smoke tests
 ```
 
@@ -133,8 +135,9 @@ See [docs/architecture.md](docs/architecture.md) for how these fit together.
 
 ## Status / TODO
 
-- [ ] Modules are an **idealized kinematic sim** (perfect tracking) — swap to closed-loop control on
-      Phoenix6/REVLib CAN vendordeps + a `DCMotorSim` model once they ship for 2027 SystemCore.
+- [x] Modules run Phoenix 6 closed-loop control (TalonFX + CANcoder), with `DCMotorSim` physics in sim.
+- [ ] Measure CAN IDs, inversions, and CANcoder offsets on the CAN bench (`bench/`) and tune gains;
+      the values in `constants.py` are placeholders.
 - [ ] Heading is integrated in sim (no gyro wired) — use the SystemCore onboard IMU on real hardware.
 - [ ] Deploy is deferred (sim-only, no SystemCore hardware yet). Set the team number and validate a
       real deploy when hardware arrives.

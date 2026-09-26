@@ -25,11 +25,11 @@ class MyRobot(commands2.TimedCommandRobot):
         self.container = RobotContainer()
         self._auto_command: commands2.Command | None = None
 
-    def autonomousInit(self) -> None:
+    def autonomous_init(self) -> None:
         self._auto_command = self.container.get_autonomous_command()
         self._auto_command.schedule()
 
-    def teleopInit(self) -> None:
+    def teleop_init(self) -> None:
         # Stop the autonomous routine so it doesn't fight the teleop drive command.
         if self._auto_command is not None:
             self._auto_command.cancel()

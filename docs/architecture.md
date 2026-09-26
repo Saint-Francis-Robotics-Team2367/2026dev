@@ -13,8 +13,8 @@ robot.py  ──creates──▶  RobotContainer  ──owns──▶  Drivetrai
 `MyRobot` subclasses `commands2.TimedCommandRobot`. That base class runs the
 `CommandScheduler` every loop for us, so the **constructor** does one thing: build the
 `RobotContainer`. (`robotInit` was removed in 2027 — setup goes in `__init__`, calling
-`super().__init__()` first.) `autonomousInit` schedules the autonomous command and
-`teleopInit` cancels it. There is no `wpilib.run(...)` in 2027 — the robot is launched by
+`super().__init__()` first.) `autonomous_init` schedules the autonomous command and
+`teleop_init` cancels it. There is no `wpilib.run(...)` in 2027 — the robot is launched by
 the `robotpy` CLI (`robotpy sim` / `deploy` / `test`).
 
 ## Wiring — `robotcontainer.py`
@@ -30,7 +30,8 @@ the `robotpy` CLI (`robotpy sim` / `deploy` / `test`).
 ## Subsystems — `subsystems/`
 
 - **`SwerveModule`** — one module. Public interface: `set_desired_state()`, `get_state()`,
-  `get_position()`, and `simulate(dt)`. Internally it's an idealized model today; see
+  `get_position()`, and `simulate(dt)`. Internally it's two Phoenix 6 TalonFX (drive
+  velocity loop, steer position loop on a CANcoder) with `DCMotorSim` physics in simulation; see
   [simulation.md](simulation.md).
 - **`Drivetrain`** — owns the four modules, the `SwerveDrive4Kinematics`, the
   `SwerveDrive4Odometry`, and the `Field2d` widget. `drive(vx, vy, omega, field_relative)`
@@ -45,9 +46,9 @@ the `robotpy` CLI (`robotpy sim` / `deploy` / `test`).
   needs the drivetrain.
 - **`demo_auto`** (`commands/auto.py`) — a controller-free autonomous routine (a sequential
   composition of timed `drive()` segments). `RobotContainer.get_autonomous_command()` returns
-  it; `robot.py` schedules it in `autonomousInit`.
+  it; `robot.py` schedules it in `autonomous_init`.
 
-## Telemetry — `telemetry.py`
+## Telemetry — `drivetrain_telemetry.py`
 
 `DrivetrainTelemetry` owns the NetworkTables publishers (struct topics for pose / chassis
 velocities / module states, plus heading and speed). `Drivetrain.periodic()` calls it every
@@ -64,10 +65,10 @@ seconds.
 ## Data flow each loop (teleop)
 
 1. `DriveByController.execute()` → `Drivetrain.drive(vx, vy, omega)`
-2. `drive()` → field-relative `ChassisVelocities` → `toRobotRelative()` → `discretize()` →
-   `KINEMATICS.toSwerveModuleVelocities()` → `desaturateWheelVelocities()` → each module's
+2. `drive()` → field-relative `ChassisVelocities` → `to_robot_relative()` → `discretize()` →
+   `KINEMATICS.to_swerve_module_velocities()` → `desaturate_wheel_velocities()` → each module's
    `set_desired_state()` (which `optimize()`s to the shortest steering path).
 3. `Drivetrain.periodic()` → `odometry.update()` → `Field2d.setRobotPose()`.
 
-In simulation, `Drivetrain.simulationPeriodic()` advances the model between steps — see
+In simulation, `Drivetrain.simulation_periodic()` advances the model between steps — see
 [simulation.md](simulation.md).

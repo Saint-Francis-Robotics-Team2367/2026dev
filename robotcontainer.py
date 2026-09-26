@@ -23,7 +23,7 @@ class RobotContainer:
         )
 
         # Teleop default: drive field-relative from the driver's sticks.
-        self.drivetrain.setDefaultCommand(
+        self.drivetrain.set_default_command(
             DriveByController(self.drivetrain, self.driver_controller)
         )
         self.configure_bindings()
