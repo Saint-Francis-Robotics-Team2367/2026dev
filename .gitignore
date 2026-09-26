@@ -5,11 +5,13 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+uv.lock
 
 # --- Virtual environment ---
 .venv/
 venv/
 env/
+
 
 # --- RobotPy / WPILib ---
 # robotpy sync downloads a local cache of robot-side wheels + python
