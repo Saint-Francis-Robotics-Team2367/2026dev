@@ -136,8 +136,18 @@ See [docs/architecture.md](docs/architecture.md) for how these fit together.
 ## Status / TODO
 
 - [x] Modules run Phoenix 6 closed-loop control (TalonFX + CANcoder), with `DCMotorSim` physics in sim.
-- [ ] Measure CAN IDs, inversions, and CANcoder offsets on the CAN bench (`bench/`) and tune gains;
-      the values in `constants.py` are placeholders.
+- [x] CAN bench bring-up (`bench/`): IDs, steer ratio/direction, CANcoder offsets identified; the
+      robot code's `SwerveModule` tracks angle (~1°) and speed (~5%) on the real modules
+      (`bench/module_test.py`, phoenix6 26.3 / 2026 firmware).
+- [ ] Visually confirm `module_test.py` directions on the robot: 0° = all wheels along the robot,
+      +90° = sideways, −45° = front-right, rolling forward = every tread pushes forward.
+- [ ] Confirm the **provisional** FL/FR/BL/BR corner assignment in `constants.py` `HardwareIds`
+      (needs a rotate-in-place step in `module_test.py`; wrong corners make wheels fight).
+- [ ] Tune drive/steer gains on the real robot (current values are sim starting points).
+- [ ] Optional: robot code writes CANcoder offsets the same way that loses one 1/4096 step
+      (~0.09°); `bench/backup_configs.py` restore uses a quarter-step nudge that fixes it.
+- [ ] When SystemCore arrives: reflash devices to 26.70 firmware, switch `bench/requirements.txt`
+      to `phoenix6==26.70.0a2`, re-run `module_test.py`.
 - [ ] Heading is integrated in sim (no gyro wired) — use the SystemCore onboard IMU on real hardware.
 - [ ] Deploy is deferred (sim-only, no SystemCore hardware yet). Set the team number and validate a
       real deploy when hardware arrives.

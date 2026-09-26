@@ -1,8 +1,9 @@
 """Back up (or restore) every persistent config on the drivetrain's CTR devices.
 
 Reads the full configuration from each TalonFX / CANcoder and writes a JSON file with,
-per device: the exact serialized config (restorable with ``--restore``), a readable
-dump, and the settings that differ from factory defaults. Close Phoenix Tuner X first.
+per device: the serialized config, a readable dump (what ``--restore`` rebuilds from,
+since ``deserialize`` is broken in phoenix6 26.3.0), and the settings that differ from
+factory defaults. Close Phoenix Tuner X first.
 
     python bench/backup_configs.py                     # back up to bench/config_backup.json
     python bench/backup_configs.py --out other.json
@@ -12,8 +13,10 @@ dump, and the settings that differ from factory defaults. Close Phoenix Tuner X 
 from __future__ import annotations
 
 import argparse
+import enum
 import json
 import math
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -101,26 +104,108 @@ def backup(args: argparse.Namespace) -> int:
     return 0
 
 
+def _attr(obj: object, readable_name: str) -> str:
+    """Find the Python attribute for a readable config name ('PeakForwardDutyCycle' ->
+    'peak_forward_duty_cycle', 'FeedbackRemoteSensorID' -> 'feedback_remote_sensor_id'),
+    matching case- and underscore-insensitively."""
+    key = readable_name.replace("_", "").lower()
+    for name in dir(obj):
+        if not name.startswith("_") and name.replace("_", "").lower() == key:
+            return name
+    raise AttributeError(f"{type(obj).__name__} has no config named {readable_name!r}")
+
+
+def _parse_value(text: str, current: object) -> object:
+    """Turn the readable 'value unit' text back into the attribute's own type."""
+    token = text.split()[0]
+    if isinstance(current, bool):
+        return token == "True"
+    if isinstance(current, enum.Enum):
+        return type(current)[token.split(".", 1)[1]]
+    if isinstance(current, (int, float)):
+        # Some numeric defaults are ints (e.g. MagnetOffset = 0) even though the field
+        # holds fractions, so only keep an int when the value really is whole.
+        value = float(token)
+        return int(value) if isinstance(current, int) and value.is_integer() else value
+    # Phoenix enums are plain classes with int-backed values; look up by member name.
+    member = token.split(".", 1)[-1]
+    return getattr(type(current), member)
+
+
+def _config_from_readable(cfg_type: type, lines: list[str]):
+    """Rebuild a config object from the readable dump saved by ``backup``.
+
+    Used instead of ``deserialize``: in phoenix6 26.3.0 it reports OK but zeroes
+    every numeric field.
+    """
+    cfg = cfg_type()
+    group = None
+    for line in lines[1:]:  # first line is the class name
+        if not line.startswith(" "):
+            name = line.removeprefix("Config Group: ").strip()
+            group = getattr(cfg, _attr(cfg, name))
+            continue
+        name, _, text = line.strip().partition(": ")
+        attr = _attr(group, name)
+        setattr(group, attr, _parse_value(text, getattr(group, attr)))
+    return cfg
+
+
+def _same_config(a: list[str], b: list[str]) -> bool:
+    return len(a) == len(b) and all(_same_value(x, y) for x, y in zip(a, b))
+
+
 def restore(args: argparse.Namespace) -> int:
     data = json.loads(Path(args.restore).read_text(encoding="utf-8"))
     bus = CANBus(data["bus"])
-    failed = []
+
+    # Rebuild every config offline first and prove it reproduces the backup exactly,
+    # before anything is written to a device.
+    plan = []
     for key, entry in data["devices"].items():
         kind, _, num = key.partition("_")
-        if kind == "talonfx":
-            device, cfg = (
-                hardware.TalonFX(int(num), bus),
-                configs.TalonFXConfiguration(),
+        cfg_type = (
+            configs.TalonFXConfiguration
+            if kind == "talonfx"
+            else configs.CANcoderConfiguration
+        )
+        cfg = _config_from_readable(cfg_type, entry["readable"])
+        if not _same_config(_readable(cfg), entry["readable"]):
+            bad = [
+                f"{a} != {b}"
+                for a, b in zip(_readable(cfg), entry["readable"])
+                if not _same_value(a, b)
+            ]
+            print(f"{key}: rebuilt config does not match backup, nothing written:")
+            print("\n".join(f"    {b}" for b in bad[:10]))
+            return 1
+        if isinstance(cfg, configs.CANcoderConfiguration):
+            # The CANcoder stores the offset in 1/4096-rotation steps and drops a step
+            # when the written value sits exactly on one; nudge a quarter step outward
+            # so it lands on the intended step (bench-verified: exact read-back).
+            offset = cfg.magnet_sensor.magnet_offset
+            cfg.magnet_sensor.magnet_offset = offset + math.copysign(
+                0.25 / 4096, offset
             )
-        else:
-            device, cfg = (
-                hardware.CANcoder(int(num), bus),
-                configs.CANcoderConfiguration(),
-            )
-        cfg.deserialize(entry["serialized"])
+        plan.append((key, kind, int(num), cfg))
+    print(f"all {len(plan)} configs rebuilt and verified offline; writing...")
+
+    failed = []
+    for key, kind, num, cfg in plan:
+        device = (
+            hardware.TalonFX(num, bus)
+            if kind == "talonfx"
+            else hardware.CANcoder(num, bus)
+        )
         status = device.configurator.apply(cfg, _TIMEOUT_S)
-        print(f"{key:12} {status.name}")
-        if not status.is_ok():
+        # Read back and compare, rather than trusting the status code.
+        check = type(cfg)()
+        device.configurator.refresh(check, _TIMEOUT_S)
+        ok = status.is_ok() and _same_config(
+            _readable(check), data["devices"][key]["readable"]
+        )
+        print(f"{key:12} {'restored, verified' if ok else f'FAILED ({status.name})'}")
+        if not ok:
             failed.append(key)
     return 1 if failed else 0
 
