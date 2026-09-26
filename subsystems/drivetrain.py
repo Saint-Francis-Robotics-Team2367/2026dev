@@ -19,7 +19,7 @@ from wpimath import (
 
 from constants import DriveConstants
 from subsystems.swervemodule import SwerveModule
-from telemetry import DrivetrainTelemetry
+from drivetrain_telemetry import DrivetrainTelemetry
 
 # Robot main-loop period; module/heading integration uses this in simulation.
 _PERIOD_S = 0.02
