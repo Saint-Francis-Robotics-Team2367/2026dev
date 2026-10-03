@@ -14,7 +14,4 @@ runs:
         python -m venv .venv
         ./.venv/bin/python -m pip install --upgrade pip
         ./.venv/bin/python -m pip install -r requirements.txt
-        ./.venv/bin/python -m pip install "robotpy[commands2]"
-        ./.venv/bin/python -m pip install "phoenix6==26.70.0a2"
-        ./.venv/bin/python -m pip install black==26.5.1
-        ./.venv/bin/python -m pip install pyright
+        ./.venv/bin/python robotpy sync
