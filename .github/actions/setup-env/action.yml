@@ -8,10 +8,13 @@ runs:
       with:
         python-version: "3.14"
 
+    - name: Install uv
+      shell: bash
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
     - name: Create venv and install dependencies
       shell: bash
       run: |
-        python -m venv .venv
-        ./.venv/bin/python -m pip install --upgrade pip
-        ./.venv/bin/python -m pip install --pre -r requirements.txt
+        ~/.cargo/bin/uv venv .venv
+        ~/.cargo/bin/uv pip install -r requirements.txt
         ./.venv/bin/python -m robotpy sync
