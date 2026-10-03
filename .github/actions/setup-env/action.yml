@@ -11,7 +11,5 @@ runs:
     - name: Create venv and install dependencies
       shell: bash
       run: |
-        python -m venv .venv
-        ./.venv/bin/python -m pip install --upgrade pip
-        ./.venv/bin/python -m pip install -r requirements.txt
-        ./.venv/bin/python robotpy sync
+        uv run pip install -r requirements.txt
+        uv run robotpy sync
