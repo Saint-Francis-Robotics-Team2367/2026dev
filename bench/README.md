@@ -24,13 +24,13 @@ repository for the CANivore, or bring up a generic SocketCAN adapter at 1 Mbps. 
 
 | `requirements.txt` | Device firmware | Notes |
 |---|---|---|
-| `phoenix6==26.3.0` (default) | 2026 (26.x) | No reflash; devices stay usable on a roboRIO. |
-| `phoenix6==26.70.0a2` | 26.70.x (SystemCore alpha) | Reflash with Phoenix Tuner X first. Devices then no longer work with 2026 roboRIO code. |
+| `phoenix6==26.3.0` (current) | 2026 (26.x) | No reflash; devices stay usable on a roboRIO. |
+| `phoenix6==26.70.0a2` | 26.70.x (SystemCore alpha) | Reflash with Phoenix Tuner X first. Devices then no longer work with 2026 roboRIO code. On a SystemCore it reads devices but refuses to enable them outside robot code. |
 
 The script prints each device's firmware on startup, so a mismatch shows up immediately.
 
 The **robot code** pins `phoenix6==26.70.0a2` (`pyproject.toml`), so devices on the SystemCore
-robot need 26.70.x firmware. Once you reflash for the robot, switch this file to 26.70.0a2 too.
+robot need 26.70.x firmware to run it. This file pins 26.3.0 to match devices still on 2026 firmware.
 
 ### Before you run it
 
@@ -53,6 +53,8 @@ robot need 26.70.x firmware. Once you reflash for the robot, switch this file to
 # Specific CANivore by name, or a SocketCAN interface on Linux
 & bench\.venv\Scripts\python.exe bench\bench.py --bus mycanivore --talon 1
 python bench/bench.py --bus can0 --talon 1
+# Pi 5 + CAN hat on community SystemCore: see docs/pi5-canhat-bench.md
+python bench/bench.py --bus can_s0 --talon 1
 ```
 
 Safety: motors only move with an explicit `--volts`. Phoenix's enable signal is fed every 50 ms

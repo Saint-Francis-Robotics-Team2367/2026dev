@@ -50,6 +50,7 @@ exclude = [
     "**/.pytest_cache",
     "**/robot_test.py",
     "bench",
+    "scripts",
 ]
 typeCheckingMode = "standard"
 pythonVersion = "3.14"
