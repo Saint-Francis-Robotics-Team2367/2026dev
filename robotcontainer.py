@@ -11,6 +11,7 @@ from commands.auto import demo_auto
 from commands.drive import DriveByController
 from constants import OIConstants
 from subsystems.drivetrain import Drivetrain
+from subsystems.questnav_subsystem import QuestNavSubsystem
 
 
 class RobotContainer:
@@ -18,6 +19,9 @@ class RobotContainer:
 
     def __init__(self) -> None:
         self.drivetrain = Drivetrain()
+        # Registered after the drivetrain, so each loop odometry updates first and
+        # QuestNav frames are fused into the fresh estimate.
+        self.questnav = QuestNavSubsystem(self.drivetrain)
         self.driver_controller = CommandNiDsXboxController(
             OIConstants.DRIVER_CONTROLLER_PORT
         )
