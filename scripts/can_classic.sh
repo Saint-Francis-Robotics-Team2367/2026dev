@@ -37,7 +37,7 @@ for arg in "$@"; do
 done
 
 if [[ $EUID -ne 0 ]]; then
-    exec sudo "$0" "$@"
+    exec sudo bash "$0" "$@"
 fi
 
 have_watchdog() {

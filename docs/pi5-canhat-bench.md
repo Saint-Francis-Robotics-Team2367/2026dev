@@ -137,7 +137,9 @@ An interface that shows `vcan` instead of `mcp251xfd` is a placeholder, not the 
 The image brings `can_s0` up as CAN FD (1 Mbps / 2 Mbps). With that, `bench.py` works for a few seconds
 and then the interface goes bus-off, about when Phoenix finishes initializing (the log shows
 `[phoenix-diagnostics] Server ... running` just before the devices turn `NOT CONNECTED`). Run
-`bench.py` on classic CAN at 1 Mbps instead. `scripts/can_classic.sh` does it (SFTP uploads it with
+`bench.py` on classic CAN at 1 Mbps instead. Other FD settings were tried and fail the same way (FD on
+with a 0.750 sample point; FD on with a 1 Mbps data phase), so FD itself is the problem, not the sample
+point or the data rate. The cause is not known. `scripts/can_classic.sh` does it (SFTP uploads it with
 the rest of `scripts/`; run it on the robot):
 
 ```bash
