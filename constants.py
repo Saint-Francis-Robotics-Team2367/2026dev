@@ -96,7 +96,7 @@ class HardwareIds:
 
     # "" = the platform default bus (can_s2 on SystemCore, any CANivore on Windows);
     # set to the CANivore's name if the drivetrain lives on one.
-    CAN_BUS = "Drivetrain"  # CANivore name, as shown in Phoenix Tuner X
+    CAN_BUS = "can_s0"  # CANivore name, as shown in Phoenix Tuner X
     #                 FL(A)  FR(C)  BL(B)  BR(D)
     DRIVE_MOTOR_CAN = (2, 8, 4, 10)
     TURN_MOTOR_CAN = (1, 7, 5, 11)
@@ -113,6 +113,15 @@ class HardwareIds:
         -0.3271484375,
         -0.299072265625,
     )
+
+
+class DebugConstants:
+    """Bring-up spin test (Utility mode in the Driver Station)."""
+
+    SPIN_VOLTS = 1.5
+    SPIN_SECONDS = 2.0  # per motor
+    MIN_SPIN_RPS = 0.05  # mechanism speed that counts as "it spun"
+    LOG_PERIOD_S = 1.0
 
 
 class OIConstants:
