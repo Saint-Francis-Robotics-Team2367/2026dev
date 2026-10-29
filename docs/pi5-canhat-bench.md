@@ -4,10 +4,12 @@ Goal: a demo that exercises every drivetrain motor in sequence, to prove the bas
 firmware, direction) before relying on SystemCore. The robot is a Pi 5 with a MCP2518FD CAN hat
 running the **community SystemCore image**.
 
-Status: `bench/bench.py` reads and spins a TalonFX (ID 2) and a CANcoder (ID 3) over the hat on
-`can_s0`, using `phoenix6==26.3.0`. It only stays up for a full run if `can_s0` is switched from the
-image's CAN FD setup to classic CAN first (step 4). The all-8-motor 15 s run with classic CAN and
-the robot code are not tested yet.
+Status: the devices are now on **26.70.x firmware** and the robot code (`phoenix6==26.70.0a2`)
+spins a TalonFX (ID 2) through the Driver Station in Utility mode (see "Spin the motors from robot
+code"). That only works after `can_s0` is switched from the image's CAN FD setup to classic CAN
+(step 4); in FD mode the bus bounces and Phoenix reports "firmware version could not be retrieved".
+The earlier bench runs (`bench/bench.py`, `phoenix6==26.3.0`) were on 2026 firmware. The all-8-motor
+Utility-mode run is written but not yet confirmed on the robot.
 
 ## Background
 
@@ -32,7 +34,7 @@ the robot code are not tested yet.
   `mcp251xfd ... CRC read error` / `Failed to set Requested Operation Mode` lines in `dmesg`.
 - **Driver Station enable:** robot code gets its enable through `MrcCommDaemon` and the `can_heartbeat`
   kernel module, and Phoenix takes it from there. The standalone bench has no Driver Station; it feeds
-  the enable signal itself, which works with `phoenix6==26.3.0` on this image (see the version note in
+  the enable signal itself, which worked with `phoenix6==26.3.0` on 2026 firmware on this image (see the version note in
   step 1).
 
 ## What this robot reports
@@ -49,8 +51,9 @@ Checked over SSH:
   switch to classic CAN first (step 4).
 - With no CAN bus connected, both show `ERROR-PASSIVE (berr-counter tx 128)`. That is the normal state
   of a controller sending frames that nothing acknowledges. It is not a hat fault.
-- Talons wired to the hat answer on `can_s0`. Devices seen so far: TalonFX 2 on firmware 26.3.0.0 and
-  CANcoder 3 on 26.1.1.0, i.e. **2026 firmware**.
+- Talons wired to the hat answer on `can_s0`. They were first seen on **2026 firmware** (TalonFX 2 on
+  26.3.0.0, CANcoder 3 on 26.1.1.0) and have since been reflashed to **26.70.0.0** with Tuner X over a
+  CANivore.
 
 ## Motors in this robot
 
@@ -77,12 +80,14 @@ ignores `**/.venv`).
 ### 1. Download the bench packages (laptop)
 
 The packages come from `bench/requirements.txt`: `phoenix6` and `robotpy-wpimath`, never full
-`wpilib`. The `phoenix6` line must match the **device firmware**, and for this robot it is **`26.3.0`**:
+`wpilib`. The `phoenix6` line must match the **device firmware**, and for this robot it is now
+**`26.70.0a2`** (devices reflashed to 26.70.x):
 
-- `26.3.0` matches the devices' 2026 firmware, and reads and spins them.
-- `26.70.0a2` (the robot-code pin in `pyproject.toml`) fails here: it reports `Firmware Too Old` for
-  the 2026 firmware, and refuses to enable devices outside robot code (`Cannot run the non-FIRST
-  Phoenix 6 libraries on a FIRST Systemcore. Devices will remain disabled.`). Reads still work.
+- `26.70.0a2` (also the robot-code pin in `pyproject.toml`) reads the 26.70.x devices. It refuses to
+  enable them outside robot code (`Cannot run the non-FIRST Phoenix 6 libraries on a FIRST
+  Systemcore. Devices will remain disabled.`), so spin them from robot code instead.
+- `26.3.0` matches 2026 firmware only. Against 26.70.x firmware it reports `This API version is too
+  old for the firmware on the device`.
 
 Then run the script. It needs only [uv](https://docs.astral.sh/uv/) (`brew install uv`) on the laptop,
 no project venv:
@@ -216,21 +221,43 @@ module before spinning it.
   Talons powered, and that `robot.service` is stopped.
 - **`ERROR-PASSIVE` / `BUS-OFF`** (`ip -details link show can_s0`): with a bus connected, usually
   termination or wiring. With nothing connected it is expected (see above).
-- **`Firmware Too Old` or `non-FIRST Phoenix 6 libraries on a FIRST Systemcore`:** the venv has
-  `phoenix6==26.70.0a2` but the devices are on 2026 firmware. Set `26.3.0` in `bench/requirements.txt`,
-  re-download, and reinstall (steps 1, 2, 5).
+- **`Firmware Too Old`:** the venv's `phoenix6` is older than the devices' firmware (or newer than
+  2026 firmware). Match `bench/requirements.txt` to the firmware (`26.70.0a2` for 26.70.x), delete
+  `wheels-bench/`, re-download, and reinstall (steps 1, 2, 5).
+- **`non-FIRST Phoenix 6 libraries on a FIRST Systemcore`:** expected for the bench on this image;
+  it can read but not enable. Spin from robot code (below).
+- **Driver Station alert "firmware version could not be retrieved" and `ip -details link show can_s0`
+  shows `<FD,...> state BUS-OFF`:** the FD bounce. Run `scripts/can_classic.sh` (step 4), then
+  restart robot code.
 - **Motors sit in brake:** FRC-locked from a roboRIO. Factory-default once in Tuner X, but run
   `bench/backup_configs.py` first.
 
+## Spin the motors from robot code (Utility mode)
+
+Robot code gets its enable from the Driver Station, so this is how to spin motors once the devices
+are on 26.70.x firmware. With `HardwareIds.CAN_BUS = "can_s0"` in `constants.py`:
+
+1. On the robot, switch to classic CAN: `bash scripts/can_classic.sh`. It does not survive a reboot.
+2. Deploy (`robotpy deploy`; `logs/*.hoot` from local sim runs get uploaded too, delete `logs/` first).
+3. Watch the output: `ssh robot journalctl -u robot.service -f`, the Driver Station console, or the
+   robot dashboard's Robot Program Log. Look for `[robot] code started`.
+4. In the Driver Station select **Utility** (2027's name for Test mode) and enable.
+
+`SpinAllMotors` (`commands/debug.py`) spins each drive motor and then each steer motor, one at a
+time, at `DebugConstants.SPIN_VOLTS` for `SPIN_SECONDS`, logging `[spin] ...` once a second, then
+prints an `OK`/`FAIL` summary line per motor. Every Driver Station state change is logged as
+`[robot] DS attached=... enabled=... mode=... opmode=...`. Leave Utility and re-enter it to rerun.
+Output goes through `dslog.log` (stdout plus `hal.send_console_line`).
+
 ## Suggested order
 
-1. Done: read and spin Talon 2 / CANcoder 3 on `can_s0` with `bench.py`.
-2. Run all 8 motors in sequence on the bench path (needs a `--sequence` mode, or a loop over the IDs
-   above).
-3. For robot code, get the devices onto 26.70.x firmware: robot code pins `phoenix6==26.70.0a2`
-   (`pyproject.toml`), which rejects 2026 firmware. How to flash through the hat is unverified.
-4. Run the same sequence as robot code through the Driver Station (`robotpy deploy`), setting
-   `CAN_BUS` to `can_s0`.
+1. Done: read and spin Talon 2 / CANcoder 3 on `can_s0` with `bench.py` (2026 firmware), then with
+   robot code in Utility mode (26.70.x firmware).
+2. Run all 8 motors in sequence from robot code (Utility mode, `SpinAllMotors`) and record the
+   `OK`/`FAIL` summary. Written, not yet confirmed on the robot.
+3. Done: devices on 26.70.x firmware (flashed with Tuner X over a CANivore; flashing through the hat
+   is still unverified).
+4. Drive a module from robot code (Teleop), starting with a slow no-joystick test on blocks.
 
 ## Open questions
 
@@ -240,8 +267,8 @@ module before spinning it.
 - Whether the bench needs the watchdog stopped once `can_s0` is classic (try
   `scripts/can_classic.sh --keep-watchdog`), and how to make classic mode survive a reboot for bench
   sessions (the image sets FD at boot; where is not yet found).
-- Whether robot code (`phoenix6==26.70.0a2`) needs the FD setup, since it differs from the bench's
-  classic setup.
+- Robot code (`phoenix6==26.70.0a2`) spins a motor on classic CAN at 1 Mbps, so it does not need
+  the image's FD setup. Whether classic mode survives a long run with the full drivetrain is untested.
 - `bench.py` prints `CANbus Failed Bring-up` even when it works: probably Phoenix failing to configure
   the interface as a non-root user. Not verified.
 - Name of the robot-code service on this image (`robot.service` is taken from the teardown).

@@ -1,6 +1,6 @@
 # Bench-test venv only (NOT the robot venv). Pick the line matching your device firmware:
-#   26.3.x    -> 2026 firmware; devices stay usable on a roboRIO. Current choice.
-#   26.70.0a2 -> SystemCore alpha (matches the robot code); requires reflashing devices to
+#   26.3.x    -> 2026 firmware; devices stay usable on a roboRIO.
+#   26.70.0a2 -> SystemCore alpha (matches the robot code). Current choice; requires devices on
 #                26.70.x firmware. On a SystemCore it reads but refuses to enable devices
 #                outside robot code ("non-FIRST library on a FIRST Systemcore").
 phoenix6==26.70.0a2

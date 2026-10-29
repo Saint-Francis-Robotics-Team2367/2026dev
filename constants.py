@@ -94,9 +94,10 @@ class HardwareIds:
     (A/B left, C/D right, inferred from drive inversion) until confirmed on the robot.
     """
 
-    # "" = the platform default bus (can_s2 on SystemCore, any CANivore on Windows);
-    # set to the CANivore's name if the drivetrain lives on one.
-    CAN_BUS = "can_s0"  # CANivore name, as shown in Phoenix Tuner X
+    # "" = the platform default bus (can_s2 on SystemCore, any CANivore on Windows).
+    # "can_s0" is the CAN hat on the community SystemCore image; use the CANivore's
+    # name (as shown in Phoenix Tuner X) if the drivetrain lives on one instead.
+    CAN_BUS = "can_s0"
     #                 FL(A)  FR(C)  BL(B)  BR(D)
     DRIVE_MOTOR_CAN = (2, 8, 4, 10)
     TURN_MOTOR_CAN = (1, 7, 5, 11)
