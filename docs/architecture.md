@@ -34,9 +34,25 @@ the `robotpy` CLI (`robotpy sim` / `deploy` / `test`).
   velocity loop, steer position loop on a CANcoder) with `DCMotorSim` physics in simulation; see
   [simulation.md](simulation.md).
 - **`Drivetrain`** — owns the four modules, the `SwerveDrive4Kinematics`, the
-  `SwerveDrive4Odometry`, and the `Field2d` widget. `drive(vx, vy, omega, field_relative)`
+  `SwerveDrive4PoseEstimator`, and the `Field2d` widget. `drive(vx, vy, omega, field_relative)`
   runs inverse kinematics and pushes desired states to the modules; `periodic()` updates
-  odometry and publishes the pose to Field2d.
+  the estimator from wheel odometry and publishes the pose to Field2d.
+  `add_vision_measurement()` fuses absolute poses; `reset_pose()` snaps the estimate.
+- **`QuestNavSubsystem`** — feeds a Meta Quest headset running
+  [QuestNav](https://questnav.gg/) into the drivetrain estimator. Each loop it drains the
+  headset's unread pose frames, converts headset pose → robot pose through
+  `QuestNavConstants.ROBOT_TO_QUEST`, and calls `Drivetrain.add_vision_measurement()`
+  (skipping frames where the headset lost tracking). AprilTag correction happens on the
+  headset, so the robot just sees better poses. Status goes to `QuestNavStatus/*`.
+
+## QuestNav client — `questnav/`
+
+QuestNav only ships a Java vendor library, so `questnav/` is a small Python port of it:
+`protocol.py` is a hand-written codec for its protobuf messages (no `protobuf` dependency;
+checked against reference bytes in `tests/test_questnav.py`) and `client.py` is the
+NetworkTables client (`get_all_unread_pose_frames()`, `set_pose()`, `command_periodic()`,
+connection/tracking/battery status). 2027 ntcore timestamps are nanoseconds; the client
+converts them to `Timer` seconds.
 
 ## Commands — `commands/`
 
@@ -68,7 +84,8 @@ seconds.
 2. `drive()` → field-relative `ChassisVelocities` → `to_robot_relative()` → `discretize()` →
    `KINEMATICS.to_swerve_module_velocities()` → `desaturate_wheel_velocities()` → each module's
    `set_desired_state()` (which `optimize()`s to the shortest steering path).
-3. `Drivetrain.periodic()` → `odometry.update()` → `Field2d.setRobotPose()`.
+3. `Drivetrain.periodic()` → `estimator.update()` → `Field2d.setRobotPose()`.
+4. `QuestNavSubsystem.periodic()` → unread headset frames → `Drivetrain.add_vision_measurement()`.
 
 In simulation, `Drivetrain.simulation_periodic()` advances the model between steps — see
 [simulation.md](simulation.md).
