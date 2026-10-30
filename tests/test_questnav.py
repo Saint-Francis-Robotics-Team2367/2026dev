@@ -14,6 +14,7 @@ from wpimath import Pose2d, Pose3d, Rotation2d, Rotation3d, Translation3d
 
 from constants import QuestNavConstants
 from questnav import QuestNav, protocol
+import subsystems.questnav_subsystem as questnav_subsystem
 from subsystems.questnav_subsystem import QuestNavSubsystem
 
 # frame_count=1234, timestamp=56.789, pose (1.5, -2.25, 0.5) yawed 45 deg, tracking.
@@ -205,3 +206,56 @@ def test_reset_pose_sends_headset_pose(nt: NetworkTableInstance) -> None:
     assert request.value == protocol.encode_pose_reset_command(1, expected)
     # Mount is 0.3 m forward; the robot faces -x, so the headset sits at x = 0.7.
     assert expected.x == pytest.approx(0.7)
+
+
+class _StubQuestNav:
+    """Just the status a ``QuestNavSubsystem`` reads, settable by the test."""
+
+    def __init__(self, version: str) -> None:
+        self.connected = False
+        self.tracking = False
+        self.version = version
+
+    def command_periodic(self) -> None:
+        pass
+
+    def get_all_unread_pose_frames(self) -> list:
+        return []
+
+    def is_connected(self) -> bool:
+        return self.connected
+
+    def is_tracking(self) -> bool:
+        return self.tracking
+
+    def get_battery_percent(self) -> int | None:
+        return None
+
+    def get_questnav_version(self) -> str:
+        return self.version
+
+
+def test_subsystem_logs_connection_and_tracking_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lines: list[str] = []
+    monkeypatch.setattr(questnav_subsystem, "log", lines.append)
+    monkeypatch.setattr(QuestNavConstants, "EXPECTED_APP_VERSION", "expected")
+    quest = _StubQuestNav(version="other")
+    subsystem = QuestNavSubsystem(_RecordingDrivetrain(), quest)  # type: ignore[arg-type]
+
+    subsystem.periodic()  # still disconnected: nothing to report
+    quest.connected = quest.tracking = True
+    subsystem.periodic()
+    subsystem.periodic()  # no change: no repeat
+    quest.tracking = False
+    subsystem.periodic()
+    quest.connected = False
+    subsystem.periodic()
+
+    assert lines == [
+        "[questnav] connected, app other (MISMATCH: code expects expected)",
+        "[questnav] tracking acquired",
+        "[questnav] tracking lost",
+        "[questnav] disconnected",
+    ]
