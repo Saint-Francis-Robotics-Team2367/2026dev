@@ -8,7 +8,7 @@ and rad/s).
 
 import math
 
-from wpimath import SwerveDrive4Kinematics, Translation2d
+from wpimath import Rotation3d, SwerveDrive4Kinematics, Transform3d, Translation2d
 
 
 class DriveConstants:
@@ -131,3 +131,20 @@ class OIConstants:
     DRIVER_CONTROLLER_PORT = 0
     # Ignore small joystick noise near center.
     DEADBAND = 0.1
+
+
+class QuestNavConstants:
+    """Meta Quest headset running QuestNav (VIO + on-headset AprilTag correction)."""
+
+    # QuestNav app version this code was written against; a mismatch with the
+    # headset logs a warning. Set to None to silence it (e.g. while testing builds).
+    EXPECTED_APP_VERSION: str | None = "2026-3.0.0-beta"
+
+    # Headset pose relative to robot center (+x forward, +y left, +z up). PLACEHOLDER
+    # -- measure the real mount; yaw matters most (a backwards-facing headset is
+    # Rotation3d(0, 0, math.pi)).
+    ROBOT_TO_QUEST = Transform3d(0.3, 0.0, 0.5, Rotation3d())
+
+    # Pose-estimator trust in QuestNav (x m, y m, heading rad); smaller = more trust.
+    # QuestNav's recommended starting point: 2 cm, 2 cm, 5 degrees.
+    STD_DEVS = (0.02, 0.02, math.radians(5))

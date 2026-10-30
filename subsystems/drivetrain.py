@@ -1,9 +1,12 @@
-"""Swerve drivetrain subsystem: modules, odometry, and the Field2d widget.
+"""Swerve drivetrain subsystem: modules, pose estimation, and the Field2d widget.
 
 In simulation this subsystem also owns the robot heading. SystemCore has an
 onboard IMU, but with no gyro wired in sim we integrate heading from the
 rotation rate the modules actually produce (forward kinematics of their measured
 states). Swap in the real IMU angle here once hardware exists.
+
+The pose comes from a ``SwerveDrive4PoseEstimator``: wheel odometry, corrected by
+any absolute measurements passed to ``add_vision_measurement`` (QuestNav today).
 """
 
 import commands2
@@ -13,7 +16,7 @@ from wpimath import (
     ChassisVelocities,
     Pose2d,
     Rotation2d,
-    SwerveDrive4Odometry,
+    SwerveDrive4PoseEstimator,
     SwerveModulePosition,
     SwerveModuleVelocity,
 )
@@ -57,7 +60,7 @@ class Drivetrain(commands2.Subsystem):
         ]
         self._heading = Rotation2d()
 
-        self._odometry = SwerveDrive4Odometry(
+        self._estimator = SwerveDrive4PoseEstimator(
             DriveConstants.KINEMATICS,
             self._heading,
             self._module_positions(),
@@ -101,10 +104,23 @@ class Drivetrain(commands2.Subsystem):
             module.set_desired_state(state)
 
     def get_pose(self) -> Pose2d:
-        return self._odometry.get_pose()
+        return self._estimator.get_estimated_position()
+
+    def reset_pose(self, pose: Pose2d) -> None:
+        """Snap the estimate to ``pose`` (e.g. a known auto starting position)."""
+        self._estimator.reset_position(self._heading, self._module_positions(), pose)
+
+    def add_vision_measurement(
+        self,
+        pose: Pose2d,
+        timestamp_s: float,
+        std_devs: tuple[float, float, float],
+    ) -> None:
+        """Fuse an absolute robot pose measured at ``timestamp_s`` (Timer seconds)."""
+        self._estimator.add_vision_measurement(pose, timestamp_s, std_devs)
 
     def periodic(self) -> None:
-        pose = self._odometry.update(self._heading, self._module_positions())
+        pose = self._estimator.update(self._heading, self._module_positions())
         self._field.set_robot_pose(pose)
         telemetry.log("Field", self._field)
         states = self._module_states()
