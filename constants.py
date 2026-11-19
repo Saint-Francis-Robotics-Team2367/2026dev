@@ -8,6 +8,7 @@ and rad/s).
 
 import math
 
+from robotpy_fields import FieldId
 from wpimath import Rotation3d, SwerveDrive4Kinematics, Transform3d, Translation2d
 
 
@@ -123,6 +124,33 @@ class DebugConstants:
     SPIN_SECONDS = 2.0  # per motor
     MIN_SPIN_RPS = 0.05  # mechanism speed that counts as "it spun"
     LOG_PERIOD_S = 1.0
+
+
+class AlignConstants:
+    """Hold-A "drive to 1 m in front of an AprilTag" (commands/align.py).
+
+    Tag poses come from the WPILib field layout in the blue-origin field frame; the
+    QuestNav headset must be set up with the same layout or the robot parks offset.
+    """
+
+    # Swap for the 2027 game's layout after kickoff.
+    FIELD = FieldId.FRC_2026_REBUILT_WELDED
+    # PLACEHOLDER: tag 26 is on the blue hub, facing the blue alliance wall.
+    TARGET_TAG_ID = 26
+    # Robot center to tag face, straight out along the tag's normal.
+    STANDOFF_M = 1.0
+
+    # PLACEHOLDER gains (P-only): m/s per m of error, rad/s per rad of error.
+    TRANSLATION_KP = 3.0
+    HEADING_KP = 4.0
+    # "Aligned" once within these (reported to telemetry; the command keeps holding).
+    POSITION_TOLERANCE_M = 0.03
+    HEADING_TOLERANCE_RAD = math.radians(2)
+
+    # Speed caps while aligning. Full robot limits for now -- lower these for a
+    # first hardware test with untuned gains.
+    MAX_SPEED_MPS = DriveConstants.MAX_SPEED_MPS
+    MAX_ANGULAR_SPEED_RPS = DriveConstants.MAX_ANGULAR_SPEED_RPS
 
 
 class OIConstants:

@@ -89,10 +89,15 @@ class Drivetrain(commands2.Subsystem):
     def drive(
         self, vx: float, vy: float, omega: float, field_relative: bool = True
     ) -> None:
-        """Drive the chassis. vx/vy are m/s, omega is rad/s (CCW positive)."""
+        """Drive the chassis. vx/vy are m/s, omega is rad/s (CCW positive).
+
+        Field-relative uses the *estimated* heading, not the raw gyro: once the
+        estimate is reset or corrected by QuestNav the two differ, and the field
+        frame is the estimator's.
+        """
         velocities = ChassisVelocities(vx, vy, omega)
         if field_relative:
-            velocities = velocities.to_robot_relative(self._heading)
+            velocities = velocities.to_robot_relative(self.get_pose().rotation())
         # Compensate for translational skew while translating and rotating.
         velocities = velocities.discretize(_PERIOD_S)
 
@@ -118,6 +123,10 @@ class Drivetrain(commands2.Subsystem):
     ) -> None:
         """Fuse an absolute robot pose measured at ``timestamp_s`` (Timer seconds)."""
         self._estimator.add_vision_measurement(pose, timestamp_s, std_devs)
+
+    def show_target(self, pose: Pose2d | None) -> None:
+        """Draw a goal pose on the Field2d widget as "Target" (``None`` hides it)."""
+        self._field.get_object("Target").set_poses([] if pose is None else [pose])
 
     def periodic(self) -> None:
         pose = self._estimator.update(self._heading, self._module_positions())

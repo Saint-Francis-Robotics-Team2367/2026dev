@@ -33,6 +33,10 @@ class QuestNavSubsystem(commands2.Subsystem):
     def questnav(self) -> QuestNav:
         return self._questnav
 
+    def is_tracking(self) -> bool:
+        """True while the headset is connected and reporting a tracked pose."""
+        return self._questnav.is_connected() and self._questnav.is_tracking()
+
     def reset_pose(self, robot_pose: Pose2d) -> None:
         """Tell the headset where the robot is (it re-origins to match).
 
@@ -56,7 +60,7 @@ class QuestNavSubsystem(commands2.Subsystem):
             accepted += 1
 
         connected = self._questnav.is_connected()
-        tracking = connected and self._questnav.is_tracking()
+        tracking = self.is_tracking()
         self._log_changes(connected, tracking)
 
         telemetry.log("QuestNavStatus/connected", connected)

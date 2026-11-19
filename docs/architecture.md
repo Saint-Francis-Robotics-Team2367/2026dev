@@ -25,7 +25,7 @@ the `robotpy` CLI (`robotpy sim` / `deploy` / `test`).
   (`CommandNiDsXboxController`),
 - sets the drivetrain's **default command** to `DriveByController` (so teleop drives by
   default), and
-- `configure_bindings()` is where button → command bindings go as they're added.
+- `configure_bindings()` binds buttons to commands: holding **A** runs `AlignToTag`.
 
 ## Subsystems — `subsystems/`
 
@@ -35,7 +35,9 @@ the `robotpy` CLI (`robotpy sim` / `deploy` / `test`).
   [simulation.md](simulation.md).
 - **`Drivetrain`** — owns the four modules, the `SwerveDrive4Kinematics`, the
   `SwerveDrive4PoseEstimator`, and the `Field2d` widget. `drive(vx, vy, omega, field_relative)`
-  runs inverse kinematics and pushes desired states to the modules; `periodic()` updates
+  runs inverse kinematics and pushes desired states to the modules (field-relative uses the
+  pose estimate's heading, not the raw gyro, so it stays correct after a reset or a QuestNav
+  correction); `periodic()` updates
   the estimator from wheel odometry and publishes the pose to Field2d.
   `add_vision_measurement()` fuses absolute poses; `reset_pose()` snaps the estimate.
 - **`QuestNavSubsystem`** — feeds a Meta Quest headset running
@@ -60,6 +62,17 @@ converts them to `Timer` seconds.
   `execute()`, applies a deadband, scales to max speeds, and calls `Drivetrain.drive()`
   field-relative. It `addRequirements(drivetrain)` so it yields to any other command that
   needs the drivetrain.
+  The stick math lives in `stick_velocities()` so other commands can fall back to it.
+- **`AlignToTag`** (`commands/align.py`) — runs while **A** is held. Its target is fixed at
+  construction: the `AlignConstants.TARGET_TAG_ID` tag from the `robotpy-fields` layout
+  (`AlignConstants.FIELD`, 2026 REBUILT Welded for now), moved `STANDOFF_M` (1 m) out along
+  the tag's normal and turned to face it. Each loop, P controllers on field x, y, and heading
+  (continuous) drive the pose estimate to the target, with speed capped along the path. On a
+  real robot it only aligns while `QuestNavSubsystem.is_tracking()`; otherwise the driver
+  keeps the sticks (logged to the DS console). Simulation skips that check. The target shows
+  on Field2d as `Target`; `Align/aligning` and `Align/atTarget` go to telemetry. QuestNav
+  never reports which tags it sees, so this needs no camera, but the headset must use the
+  same field layout as `AlignConstants.FIELD`.
 - **`demo_auto`** (`commands/auto.py`) — a controller-free autonomous routine (a sequential
   composition of timed `drive()` segments). `RobotContainer.get_autonomous_command()` returns
   it; `robot.py` schedules it in `autonomous_init`.
@@ -75,6 +88,7 @@ loop so dashboards (Elastic, AdvantageScope, Glass) see live state — see
 
 Grouped placeholders: `DriveConstants` (geometry + kinematics + limits), `ModuleConstants`
 (gear ratios / wheel size), `HardwareIds` (CAN IDs, unused until vendordeps exist), and
+`QuestNavConstants`, `AlignConstants` (target field/tag, standoff, gains, caps), and
 `OIConstants` (controller port + deadband). Units are WPILib-standard: meters, radians,
 seconds.
 

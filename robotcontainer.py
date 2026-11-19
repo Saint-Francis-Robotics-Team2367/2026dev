@@ -7,6 +7,7 @@ lifecycle and the wiring can evolve independently.
 import commands2
 from commands2.button import CommandNiDsXboxController
 
+from commands.align import AlignToTag
 from commands.auto import demo_auto
 from commands.drive import DriveByController
 from constants import OIConstants
@@ -33,7 +34,13 @@ class RobotContainer:
         self.configure_bindings()
 
     def configure_bindings(self) -> None:
-        """Bind operator controls to commands. Empty until we add buttons."""
+        """Bind operator controls to commands."""
+        # Hold A: drive to 1 m in front of the target AprilTag and hold there.
+        # Release to get the sticks back (the default command resumes).
+        self.align_command = AlignToTag(
+            self.drivetrain, self.questnav, self.driver_controller
+        )
+        self.driver_controller.a().while_true(self.align_command)
 
     def get_autonomous_command(self) -> commands2.Command:
         """The routine that runs in Autonomous (scheduled by robot.py)."""
