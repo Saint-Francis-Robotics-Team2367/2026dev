@@ -259,3 +259,17 @@ def test_subsystem_logs_connection_and_tracking_changes(
         "[questnav] tracking lost",
         "[questnav] disconnected",
     ]
+
+
+def test_pose_trusted_needs_tracking_except_in_simulation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    quest = _StubQuestNav(version="any")
+    subsystem = QuestNavSubsystem(_RecordingDrivetrain(), quest)  # type: ignore[arg-type]
+    assert wpilib.RobotBase.is_simulation()
+    assert subsystem.pose_trusted()  # no headset in sim: odometry is enough
+
+    monkeypatch.setattr(wpilib.RobotBase, "is_simulation", lambda: False)
+    assert not subsystem.pose_trusted()
+    quest.connected = quest.tracking = True
+    assert subsystem.pose_trusted()

@@ -67,9 +67,9 @@ converts them to `Timer` seconds.
   construction: the `AlignConstants.TARGET_TAG_ID` tag from the `robotpy-fields` layout
   (`AlignConstants.FIELD`, 2026 REBUILT Welded for now), moved `STANDOFF_M` (1 m) out along
   the tag's normal and turned to face it. Each loop, P controllers on field x, y, and heading
-  (continuous) drive the pose estimate to the target, with speed capped along the path. On a
-  real robot it only aligns while `QuestNavSubsystem.is_tracking()`; otherwise the driver
-  keeps the sticks (logged to the DS console). Simulation skips that check. The target shows
+  (continuous) drive the pose estimate to the target, with speed capped along the path. It only
+  aligns while `QuestNavSubsystem.pose_trusted()` (a tracking headset on a real robot, always
+  in simulation); otherwise the driver keeps the sticks (logged to the DS console). The target shows
   on Field2d as `Target`; `Align/aligning` and `Align/atTarget` go to telemetry. QuestNav
   never reports which tags it sees, so this needs no camera, but the headset must use the
   same field layout as `AlignConstants.FIELD`.

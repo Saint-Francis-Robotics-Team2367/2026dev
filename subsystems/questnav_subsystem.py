@@ -12,6 +12,7 @@ console, so a headset that drops out during bring-up is visible there.
 
 import commands2
 import telemetry
+import wpilib
 from wpimath import Pose2d, Pose3d
 
 from constants import QuestNavConstants as QC
@@ -36,6 +37,14 @@ class QuestNavSubsystem(commands2.Subsystem):
     def is_tracking(self) -> bool:
         """True while the headset is connected and reporting a tracked pose."""
         return self._questnav.is_connected() and self._questnav.is_tracking()
+
+    def pose_trusted(self) -> bool:
+        """Whether the fused pose is good enough to drive to a field target.
+
+        On a real robot that needs a tracking headset. Simulation has no headset,
+        and its odometry is exact, so it is always trusted there.
+        """
+        return wpilib.RobotBase.is_simulation() or self.is_tracking()
 
     def reset_pose(self, robot_pose: Pose2d) -> None:
         """Tell the headset where the robot is (it re-origins to match).

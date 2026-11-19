@@ -5,16 +5,15 @@ The target is fixed: the tag's pose from the WPILib field layout, moved
 P controllers on field x, y, and heading drive the pose estimate (wheel odometry
 fused with QuestNav) to that target, field-relative.
 
-On a real robot the pose is only trusted while QuestNav is tracking; otherwise the
-driver keeps normal stick control until tracking returns. Simulation has no
-headset, so it aligns on odometry alone.
+It only aligns while ``QuestNavSubsystem.pose_trusted()`` (a tracking headset on a
+real robot; always in simulation); otherwise the driver keeps normal stick control
+until it is trusted again.
 """
 
 import math
 
 import robotpy_fields
 import telemetry
-import wpilib
 from commands2 import Command
 from commands2.button import CommandNiDsXboxController
 from robotpy_fields import FieldId
@@ -83,10 +82,14 @@ class AlignToTag(Command):
             pid.reset()
         self._aligning = None
         self._drivetrain.show_target(self._target)
-        log(f"[align] tag {self._tag_id}: target {self._format(self._target)}")
+        t = self._target
+        log(
+            f"[align] tag {self._tag_id}: target ({t.x:.2f}, {t.y:.2f}) m, "
+            f"{t.rotation().degrees():.0f} deg"
+        )
 
     def execute(self) -> None:
-        can_align = self._can_align()
+        can_align = self._questnav.pose_trusted()
         if can_align != self._aligning:
             self._aligning = can_align
             log(
@@ -96,12 +99,10 @@ class AlignToTag(Command):
             )
 
         pose = self._drivetrain.get_pose()
-        if can_align:
-            self._drivetrain.drive(*self.calculate(pose), field_relative=True)
-        else:
-            self._drivetrain.drive(
-                *stick_velocities(self._controller), field_relative=True
-            )
+        vx, vy, omega = (
+            self.calculate(pose) if can_align else stick_velocities(self._controller)
+        )
+        self._drivetrain.drive(vx, vy, omega, field_relative=True)
         telemetry.log("Align/aligning", can_align)
         telemetry.log("Align/atTarget", self.at_target(pose))
 
@@ -130,13 +131,4 @@ class AlignToTag(Command):
         return (
             error.translation().norm() <= AC.POSITION_TOLERANCE_M
             and abs(error.rotation().radians()) <= AC.HEADING_TOLERANCE_RAD
-        )
-
-    def _can_align(self) -> bool:
-        return wpilib.RobotBase.is_simulation() or self._questnav.is_tracking()
-
-    @staticmethod
-    def _format(pose: Pose2d) -> str:
-        return (
-            f"({pose.x:.2f}, {pose.y:.2f}) m, " f"{pose.rotation().degrees():.0f} deg"
         )

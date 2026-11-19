@@ -9,7 +9,6 @@ import math
 
 import commands2
 import pytest
-import wpilib
 from wpilib.simulation import DriverStationSim, NiDsXboxControllerSim
 from wpimath import Pose2d, Rotation2d
 
@@ -36,11 +35,11 @@ class _FakeDrivetrain(commands2.Subsystem):
 
 
 class _FakeQuestNav:
-    def __init__(self, tracking: bool) -> None:
-        self.tracking = tracking
+    def __init__(self, trusted: bool) -> None:
+        self.trusted = trusted
 
-    def is_tracking(self) -> bool:
-        return self.tracking
+    def pose_trusted(self) -> bool:
+        return self.trusted
 
 
 class _FakeController:
@@ -60,15 +59,16 @@ class _FakeController:
 
 
 def _command(
-    pose: Pose2d = Pose2d(), tracking: bool = True, controller=None
-) -> tuple[AlignToTag, _FakeDrivetrain]:
+    pose: Pose2d = Pose2d(), trusted: bool = True, controller=None
+) -> tuple[AlignToTag, _FakeDrivetrain, _FakeQuestNav]:
     drivetrain = _FakeDrivetrain(pose)
+    questnav = _FakeQuestNav(trusted)
     command = AlignToTag(
         drivetrain,  # type: ignore[arg-type]
-        _FakeQuestNav(tracking),  # type: ignore[arg-type]
+        questnav,  # type: ignore[arg-type]
         controller or _FakeController(),  # type: ignore[arg-type]
     )
-    return command, drivetrain
+    return command, drivetrain, questnav
 
 
 # --- Target geometry --------------------------------------------------------
@@ -97,7 +97,7 @@ def test_unknown_tag_fails_with_a_clear_error() -> None:
 
 
 def test_drives_toward_target_and_stops_there() -> None:
-    command, _ = _command()
+    command, *_ = _command()
     target = command.target
 
     near = Pose2d(target.x - 0.1, target.y + 0.1, target.rotation())
@@ -111,7 +111,7 @@ def test_drives_toward_target_and_stops_there() -> None:
 
 
 def test_speed_is_capped_along_the_path() -> None:
-    command, _ = _command()
+    command, *_ = _command()
     far = Pose2d(command.target.x - 10.0, command.target.y - 10.0, Rotation2d())
     vx, vy, _ = command.calculate(far)
     assert math.hypot(vx, vy) == pytest.approx(AlignConstants.MAX_SPEED_MPS)
@@ -119,7 +119,7 @@ def test_speed_is_capped_along_the_path() -> None:
 
 
 def test_heading_takes_the_short_way_around() -> None:
-    command, _ = _command()  # target faces 0 deg
+    command, *_ = _command()  # target faces 0 deg
     _, _, omega = command.calculate(
         Pose2d(command.target.translation(), Rotation2d.from_degrees(-10))
     )
@@ -133,14 +133,11 @@ def test_heading_takes_the_short_way_around() -> None:
 # --- Tracking gate ----------------------------------------------------------
 
 
-def test_real_robot_without_tracking_keeps_stick_control(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(align.wpilib.RobotBase, "is_simulation", lambda: False)
+def test_untrusted_pose_keeps_stick_control(monkeypatch: pytest.MonkeyPatch) -> None:
     lines: list[str] = []
     monkeypatch.setattr(align, "log", lines.append)
     stick = _FakeController(left_y=-1.0)  # full forward
-    command, drivetrain = _command(tracking=False, controller=stick)
+    command, drivetrain, questnav = _command(trusted=False, controller=stick)
 
     command.initialize()
     command.execute()
@@ -149,25 +146,15 @@ def test_real_robot_without_tracking_keeps_stick_control(
     assert (vy, omega, field_relative) == (0.0, 0.0, True)
     assert any("not tracking" in line for line in lines)
 
-    command._questnav.tracking = True  # type: ignore[attr-defined]
+    questnav.trusted = True
     command.execute()
     expected = command.calculate(drivetrain.pose)
     assert drivetrain.drives[-1][:3] == pytest.approx(expected)
     assert lines[-1] == "[align] aligning"
 
 
-def test_simulation_aligns_without_a_headset() -> None:
-    assert wpilib.RobotBase.is_simulation()
-    command, drivetrain = _command(tracking=False)
-    command.initialize()
-    command.execute()
-    assert drivetrain.drives[-1][:3] == pytest.approx(
-        command.calculate(drivetrain.pose)
-    )
-
-
 def test_target_marker_shown_then_cleared_and_robot_stopped() -> None:
-    command, drivetrain = _command()
+    command, drivetrain, _ = _command()
     command.initialize()
     command.execute()
     command.end(True)
@@ -226,7 +213,6 @@ def test_field_relative_drive_uses_the_estimated_heading(
 
     # Field +x is the robot's right, so every wheel points at -90 deg.
     assert len(sent) == 4
+    # Robot-frame wheel velocity is (0, -1) m/s whichever way optimize flips it.
     for state in sent:
-        assert state.angle.degrees() == pytest.approx(-90.0, abs=1.0) or (
-            state.angle.degrees() == pytest.approx(90.0, abs=1.0) and state.velocity < 0
-        )
+        assert state.velocity * state.angle.sin() == pytest.approx(-1.0, abs=0.02)
