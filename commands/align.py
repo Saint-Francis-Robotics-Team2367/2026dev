@@ -1,4 +1,4 @@
-"""Hold-to-align: drive to a spot 1 m in front of a field AprilTag and hold it.
+"""Hold-to-align: drive to a spot 1 m in front of a field AprilTag and hold A.
 
 The target is fixed: the tag's pose from the WPILib field layout, moved
 ``STANDOFF_M`` out along the tag's normal and turned to face the tag. Each loop,
