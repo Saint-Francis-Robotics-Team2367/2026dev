@@ -24,8 +24,11 @@ components = [
 # Other pip packages to install via robotpy sync, such as vendor packages.
 # phoenix6 26.70.x is CTR's SystemCore line (matches WPILib 2027 alpha 7) and needs
 # 26.70.x device firmware. The CAN bench (bench/) pins its own version separately.
+# robotpy-fields holds the AprilTag field layouts in 2027 (they moved out of
+# robotpy-apriltag); it is not a robotpy component, so it is pinned here.
 requires = [
     "phoenix6==26.70.0a2",
+    "robotpy-fields==2027.0.0a7",
 ]
 
 

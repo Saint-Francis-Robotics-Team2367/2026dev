@@ -40,6 +40,12 @@ everything is top-level: `wpimath.SwerveDrive4Kinematics`, `wpimath.Translation2
 **Launching changed:** `wpilib.run(...)` is removed. The robot is launched by the `robotpy` CLI
 (`robotpy sim` / `deploy` / `test`), or `wpilib.RobotBase.main(RobotClass)`.
 
+**AprilTag field layouts moved to `robotpy-fields`.** In 2027, `robotpy-apriltag` holds only
+the detector and pose estimator: there is no `AprilTagFieldLayout` / `AprilTagField`. Use
+`robotpy_fields.get_field(FieldId.FRC_2026_REBUILT_WELDED).get_tag_pose(id)`, which returns
+a `Pose3d` or `None`. It isn't a robotpy component, so it's pinned in `requires`. As of
+alpha 7 the newest layout is 2026 REBUILT (Welded / AndyMark); 2027's arrives after kickoff.
+
 **`pyfrc` is not in the default stack.** Simulation and tests come from `robotpy-cli` and
 `wpilib.testing`, so there's no `physics.py`; we simulate via `simulation_periodic()` instead
 (see [simulation.md](simulation.md)).
