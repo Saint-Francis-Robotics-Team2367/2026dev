@@ -24,13 +24,14 @@ repository for the CANivore, or bring up a generic SocketCAN adapter at 1 Mbps. 
 
 | `requirements.txt` | Device firmware | Notes |
 |---|---|---|
-| `phoenix6==26.3.0` (current) | 2026 (26.x) | No reflash; devices stay usable on a roboRIO. |
-| `phoenix6==26.70.0a2` | 26.70.x (SystemCore alpha) | Reflash with Phoenix Tuner X first. Devices then no longer work with 2026 roboRIO code. On a SystemCore it reads devices but refuses to enable them outside robot code. |
+| `phoenix6==26.3.0` | 2026 (26.x) | No reflash; devices stay usable on a roboRIO. |
+| `phoenix6==26.70.0a2` (current) | 26.70.x (SystemCore alpha) | Reflash with Phoenix Tuner X first. Devices then no longer work with 2026 roboRIO code. On a SystemCore it reads devices but refuses to enable them outside robot code. |
 
 The script prints each device's firmware on startup, so a mismatch shows up immediately.
 
 The **robot code** pins `phoenix6==26.70.0a2` (`pyproject.toml`), so devices on the SystemCore
-robot need 26.70.x firmware to run it. This file pins 26.3.0 to match devices still on 2026 firmware.
+robot need 26.70.x firmware to run it. This file pins the same version, to match devices now on 26.70.x firmware. Use 26.3.0 only for
+devices still on 2026 firmware.
 
 ### Before you run it
 

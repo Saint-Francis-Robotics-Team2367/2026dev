@@ -8,7 +8,8 @@ and rad/s).
 
 import math
 
-from wpimath import SwerveDrive4Kinematics, Translation2d
+from robotpy_fields import FieldId
+from wpimath import Rotation3d, SwerveDrive4Kinematics, Transform3d, Translation2d
 
 
 class DriveConstants:
@@ -94,9 +95,10 @@ class HardwareIds:
     (A/B left, C/D right, inferred from drive inversion) until confirmed on the robot.
     """
 
-    # "" = the platform default bus (can_s2 on SystemCore, any CANivore on Windows);
-    # set to the CANivore's name if the drivetrain lives on one.
-    CAN_BUS = "Drivetrain"  # CANivore name, as shown in Phoenix Tuner X
+    # "" = the platform default bus (can_s2 on SystemCore, any CANivore on Windows).
+    # "can_s0" is the CAN hat on the community SystemCore image; use the CANivore's
+    # name (as shown in Phoenix Tuner X) if the drivetrain lives on one instead.
+    CAN_BUS = "can_s0"
     #                 FL(A)  FR(C)  BL(B)  BR(D)
     DRIVE_MOTOR_CAN = (2, 8, 4, 10)
     TURN_MOTOR_CAN = (1, 7, 5, 11)
@@ -115,9 +117,62 @@ class HardwareIds:
     )
 
 
+class DebugConstants:
+    """Bring-up spin test (Utility mode in the Driver Station)."""
+
+    SPIN_VOLTS = 1.5
+    SPIN_SECONDS = 2.0  # per motor
+    MIN_SPIN_RPS = 0.05  # mechanism speed that counts as "it spun"
+    LOG_PERIOD_S = 1.0
+
+
+class AlignConstants:
+    """Hold-A "drive to 1 m in front of an AprilTag" (commands/align.py).
+
+    Tag poses come from the WPILib field layout in the blue-origin field frame; the
+    QuestNav headset must be set up with the same layout or the robot parks offset.
+    """
+
+    # Swap for the 2027 game's layout after kickoff.
+    FIELD = FieldId.FRC_2026_REBUILT_WELDED
+    # PLACEHOLDER: tag 26 is on the blue hub, facing the blue alliance wall.
+    TARGET_TAG_ID = 26
+    # Robot center to tag face, straight out along the tag's normal.
+    STANDOFF_M = 1.0
+
+    # PLACEHOLDER gains (P-only): m/s per m of error, rad/s per rad of error.
+    TRANSLATION_KP = 3.0
+    HEADING_KP = 4.0
+    # "Aligned" once within these (reported to telemetry; the command keeps holding).
+    POSITION_TOLERANCE_M = 0.03
+    HEADING_TOLERANCE_RAD = math.radians(2)
+
+    # Speed caps while aligning. Full robot limits for now -- lower these for a
+    # first hardware test with untuned gains.
+    MAX_SPEED_MPS = DriveConstants.MAX_SPEED_MPS
+    MAX_ANGULAR_SPEED_RPS = DriveConstants.MAX_ANGULAR_SPEED_RPS
+
+
 class OIConstants:
     """Operator interface (driver controls)."""
 
     DRIVER_CONTROLLER_PORT = 0
     # Ignore small joystick noise near center.
     DEADBAND = 0.1
+
+
+class QuestNavConstants:
+    """Meta Quest headset running QuestNav (VIO + on-headset AprilTag correction)."""
+
+    # QuestNav app version this code was written against; a mismatch with the
+    # headset logs a warning. Set to None to silence it (e.g. while testing builds).
+    EXPECTED_APP_VERSION: str | None = "2026-3.0.0-beta"
+
+    # Headset pose relative to robot center (+x forward, +y left, +z up). PLACEHOLDER
+    # -- measure the real mount; yaw matters most (a backwards-facing headset is
+    # Rotation3d(0, 0, math.pi)).
+    ROBOT_TO_QUEST = Transform3d(0.3, 0.0, 0.5, Rotation3d())
+
+    # Pose-estimator trust in QuestNav (x m, y m, heading rad); smaller = more trust.
+    # QuestNav's recommended starting point: 2 cm, 2 cm, 5 degrees.
+    STD_DEVS = (0.02, 0.02, math.radians(5))

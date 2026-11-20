@@ -61,8 +61,11 @@ Command-based; the interesting flow spans several files:
 - `robotcontainer.py` wires subsystems + controls and exposes `get_autonomous_command()`.
 - `subsystems/drivetrain.py` is the core: `drive()` runs inverse kinematics
   (field-relative → robot-relative → discretize → module velocities → desaturate → per-module
-  `optimize`); `periodic()` updates `SwerveDrive4Odometry`, publishes the pose to Field2d, and calls
+  `optimize`); `periodic()` updates `SwerveDrive4PoseEstimator`, publishes the pose to Field2d, and calls
   telemetry; `simulation_periodic()` integrates heading + module distance in sim.
+- `subsystems/questnav_subsystem.py` fuses Meta Quest (QuestNav) poses via `add_vision_measurement`;
+  `questnav/` is a Python port of QuestNav's Java lib (hand-written protobuf codec + NT client).
+  2027 ntcore timestamps are **nanoseconds** — don't copy QuestNavLib's microsecond math.
 - `subsystems/swervemodule.py` is **Phoenix 6**: TalonFX drive (`VelocityVoltage`) + TalonFX steer
   (`PositionVoltage`, `REMOTE_CANCODER`, continuous wrap) + CANcoder. The Talons close the loops; the class
   converts m / m/s / rad ↔ mechanism rotations. In sim, `simulate(dt)` runs two `DCMotorSim`s from the
